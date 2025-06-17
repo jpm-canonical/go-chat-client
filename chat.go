@@ -12,21 +12,16 @@ import (
 	"github.com/openai/openai-go/packages/ssestream"
 )
 
-const (
-	ModelName      = "DeepSeek-R1-Distill-Qwen-7B-ov-int4"
-	ReasoningModel = true
-)
-
 func main() {
-	client := openai.NewClient(
-		//option.WithAPIKey("My API Key"), // defaults to env var OPENAI_API_KEY
-		//option.WithBaseURL("http://localhost:8080/v3/"), // defaults to env var OPENAI_BASE_URL
-	)
+	modelName := os.Getenv("MODEL_NAME")
+	reasoningModel := os.Getenv("REASONING_MODEL") == "True"
+
+	client := openai.NewClient()
 
 	param := openai.ChatCompletionNewParams{
 		Messages: []openai.ChatCompletionMessageParamUnion{},
 		Seed:     openai.Int(0),
-		Model:    ModelName,
+		Model:    modelName,
 	}
 
 	fmt.Println("Type your prompt, then ENTER to submit. CTRL-C to quit.")
@@ -43,7 +38,7 @@ func main() {
 		param.Messages = append(param.Messages, openai.UserMessage(scanner.Text()))
 
 		stream := client.Chat.Completions.NewStreaming(context.Background(), param)
-		appendParam := processStream(stream)
+		appendParam := processStream(stream, reasoningModel)
 
 		param.Messages = append(param.Messages, appendParam)
 		fmt.Println()
@@ -51,12 +46,12 @@ func main() {
 	}
 }
 
-func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk]) openai.ChatCompletionMessageParamUnion {
+func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk], printThinking bool) openai.ChatCompletionMessageParamUnion {
 
 	// optionally, an accumulator helper can be used
 	acc := openai.ChatCompletionAccumulator{}
 
-	thinking := ReasoningModel
+	thinking := printThinking
 
 	for stream.Next() {
 		chunk := stream.Current()
