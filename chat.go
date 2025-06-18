@@ -1,3 +1,5 @@
+/*
+ */
 package main
 
 import (
@@ -35,7 +37,7 @@ func main() {
 	fmt.Println("Type your prompt, then ENTER to submit. CTRL-C to quit.")
 
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt: "\033[31m»\033[0m ",
+		Prompt: Red + "» " + ColorOff,
 		//HistoryFile:     "/tmp/readline.tmp",
 		//AutoComplete:    completer,
 		InterruptPrompt: "^C",
@@ -89,6 +91,7 @@ func checkServer(client openai.Client, params openai.ChatCompletionNewParams) er
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -111,14 +114,15 @@ func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk], printTh
 	// optionally, an accumulator helper can be used
 	acc := openai.ChatCompletionAccumulator{}
 
+	// For reasoning models we assume the first output is them thinking, because the opening <think> tag is not always present.
 	thinking := printThinking
 
 	for stream.Next() {
 		chunk := stream.Current()
 		acc.AddChunk(chunk)
 
-		if content, ok := acc.JustFinishedContent(); ok {
-			fmt.Printf("Content stream finished: %s", content)
+		if _, ok := acc.JustFinishedContent(); ok {
+			//fmt.Println("\nContent stream finished")
 		}
 
 		// if using tool calls
@@ -130,18 +134,22 @@ func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk], printTh
 			fmt.Printf("Refusal stream finished: %s", refusal)
 		}
 
-		// it's best to use chunks after handling JustFinished events
+		// Print chunks as they are received. Colors from: https://gist.github.com/vratiu/9780109
 		if len(chunk.Choices) > 0 {
 			lastChunk := chunk.Choices[0].Delta.Content
 
-			if strings.Contains(lastChunk, "</think>") {
-				// Catch end of thinking tag
+			if strings.Contains(lastChunk, "<think>") {
+				thinking = true
+				fmt.Printf(Purple+"%s"+ColorOff, lastChunk)
+			} else if strings.Contains(lastChunk, "</think>") {
 				thinking = false
-				fmt.Fprint(os.Stderr, lastChunk)
+				fmt.Printf(Purple+"%s"+ColorOff, lastChunk)
+
 			} else if thinking {
-				fmt.Fprint(os.Stderr, lastChunk)
+				fmt.Printf(Purple+"%s"+ColorOff, lastChunk)
+
 			} else {
-				fmt.Print(lastChunk)
+				fmt.Printf(Blue+"%s"+ColorOff, lastChunk)
 			}
 		}
 	}

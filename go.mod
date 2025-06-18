@@ -1,4 +1,4 @@
-module chat-client
+module github.com/jpm-canonical/go-chat-client
 
 go 1.24
 
