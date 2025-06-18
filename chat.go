@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chzyer/readline"
+	"github.com/fatih/color"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/packages/ssestream"
-
-	"github.com/chzyer/readline"
 )
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 	fmt.Println("Type your prompt, then ENTER to submit. CTRL-C to quit.")
 
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt: Red + "» " + ColorOff,
+		Prompt: color.RedString("» "),
 		//HistoryFile:     "/tmp/readline.tmp",
 		//AutoComplete:    completer,
 		InterruptPrompt: "^C",
@@ -140,16 +140,16 @@ func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk], printTh
 
 			if strings.Contains(lastChunk, "<think>") {
 				thinking = true
-				fmt.Printf(Purple+"%s"+ColorOff, lastChunk)
+				fmt.Printf("%s", color.BlueString(lastChunk))
 			} else if strings.Contains(lastChunk, "</think>") {
 				thinking = false
-				fmt.Printf(Purple+"%s"+ColorOff, lastChunk)
+				fmt.Printf("%s", color.BlueString(lastChunk))
 
 			} else if thinking {
-				fmt.Printf(Purple+"%s"+ColorOff, lastChunk)
+				fmt.Printf("%s", color.BlueString(lastChunk))
 
 			} else {
-				fmt.Printf(Blue+"%s"+ColorOff, lastChunk)
+				fmt.Printf("%s", lastChunk)
 			}
 		}
 	}
