@@ -34,6 +34,9 @@ func main() {
 		log.Fatalf("Connecting to server failed: %v", err)
 	}
 
+	// Make the llm believe it told us it's an assistant. System messages are ignored?
+	params.Messages = append(params.Messages, openai.AssistantMessage("How may I assist you today?"))
+
 	fmt.Println("Type your prompt, then ENTER to submit. CTRL-C to quit.")
 
 	rl, err := readline.NewEx(&readline.Config{
@@ -102,14 +105,16 @@ func handlePrompt(client openai.Client, params openai.ChatCompletionNewParams, r
 	appendParam := processStream(stream, reasoningModel)
 
 	// Store previous prompts for context
-	params.Messages = append(params.Messages, appendParam)
+	if appendParam != nil {
+		params.Messages = append(params.Messages, *appendParam)
+	}
 	fmt.Println()
 	fmt.Println()
 
 	return params
 }
 
-func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk], printThinking bool) openai.ChatCompletionMessageParamUnion {
+func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk], printThinking bool) *openai.ChatCompletionMessageParamUnion {
 
 	// optionally, an accumulator helper can be used
 	acc := openai.ChatCompletionAccumulator{}
@@ -159,7 +164,11 @@ func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk], printTh
 	}
 
 	// After the stream is finished, acc can be used like a ChatCompletion
-	return acc.Choices[0].Message.ToParam()
+	appendParam := acc.Choices[0].Message.ToParam()
+	if acc.Choices[0].Message.Content == "" {
+		return nil
+	}
+	return &appendParam
 }
 
 func filterInput(r rune) (rune, bool) {
