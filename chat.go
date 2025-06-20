@@ -31,7 +31,9 @@ func main() {
 	}
 
 	if err := checkServer(client, params); err != nil {
-		log.Fatalf("Connecting to server failed: %v", err)
+		err = fmt.Errorf("%v\n\nUnable to chat. Make sure the server has started successfully.\n", err)
+		fmt.Fprint(os.Stderr, err)
+		return
 	}
 
 	// Make the llm believe it told us it's an assistant. System messages are ignored?
