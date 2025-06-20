@@ -20,7 +20,7 @@ import (
 
 func main() {
 	modelName := os.Getenv("MODEL_NAME")
-	reasoningModel := os.Getenv("REASONING_MODEL") == "True"
+	reasoningModel := os.Getenv("REASONING_MODEL") == "true"
 
 	// OpenAI API Client
 	client := openai.NewClient()
