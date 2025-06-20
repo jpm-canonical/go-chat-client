@@ -32,7 +32,7 @@ func main() {
 	if err := checkServer(client, params); err != nil {
 		err = fmt.Errorf("%v\n\nUnable to chat. Make sure the server has started successfully.\n", err)
 		fmt.Fprint(os.Stderr, err)
-		return
+		os.Exit(1)
 	}
 
 	// Make the llm believe it told us it's an assistant. System messages are ignored?
@@ -167,7 +167,9 @@ func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk], printTh
 	}
 
 	if stream.Err() != nil {
-		panic(stream.Err())
+		err := fmt.Errorf("\n\nError reading response stream: %v\n", stream.Err())
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	// After the stream is finished, acc can be used like a ChatCompletion
