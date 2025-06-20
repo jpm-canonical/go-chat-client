@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,15 +11,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chzyer/readline"
+	"github.com/fatih/color"
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/packages/ssestream"
-
-	"github.com/chzyer/readline"
 )
 
 func main() {
 	modelName := os.Getenv("MODEL_NAME")
-	reasoningModel := os.Getenv("REASONING_MODEL") == "True"
+	reasoningModel := os.Getenv("REASONING_MODEL") == "true"
 
 	// OpenAI API Client
 	client := openai.NewClient()
@@ -29,13 +30,18 @@ func main() {
 	}
 
 	if err := checkServer(client, params); err != nil {
-		log.Fatalf("Connecting to server failed: %v", err)
+		err = fmt.Errorf("%v\n\nUnable to chat. Make sure the server has started successfully.\n", err)
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(1)
 	}
+
+	// Make the llm believe it told us it's an assistant. System messages are ignored?
+	params.Messages = append(params.Messages, openai.AssistantMessage("How may I assist you today?"))
 
 	fmt.Println("Type your prompt, then ENTER to submit. CTRL-C to quit.")
 
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt: "\033[31m»\033[0m ",
+		Prompt: color.RedString("» "),
 		//HistoryFile:     "/tmp/readline.tmp",
 		//AutoComplete:    completer,
 		InterruptPrompt: "^C",
@@ -89,36 +95,46 @@ func checkServer(client openai.Client, params openai.ChatCompletionNewParams) er
 			return err
 		}
 	}
+
 	return nil
 }
 
 func handlePrompt(client openai.Client, params openai.ChatCompletionNewParams, reasoningModel bool, prompt string) openai.ChatCompletionNewParams {
 	params.Messages = append(params.Messages, openai.UserMessage(prompt))
 
+	paramDebugString, _ := json.Marshal(params)
+
+	if os.Getenv("DEBUG") == "true" {
+		log.Printf("Sending request:\n%s", paramDebugString)
+	}
+
 	stream := client.Chat.Completions.NewStreaming(context.Background(), params)
 	appendParam := processStream(stream, reasoningModel)
 
 	// Store previous prompts for context
-	params.Messages = append(params.Messages, appendParam)
+	if appendParam != nil {
+		params.Messages = append(params.Messages, *appendParam)
+	}
 	fmt.Println()
 	fmt.Println()
 
 	return params
 }
 
-func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk], printThinking bool) openai.ChatCompletionMessageParamUnion {
+func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk], printThinking bool) *openai.ChatCompletionMessageParamUnion {
 
 	// optionally, an accumulator helper can be used
 	acc := openai.ChatCompletionAccumulator{}
 
+	// For reasoning models we assume the first output is them thinking, because the opening <think> tag is not always present.
 	thinking := printThinking
 
 	for stream.Next() {
 		chunk := stream.Current()
 		acc.AddChunk(chunk)
 
-		if content, ok := acc.JustFinishedContent(); ok {
-			fmt.Printf("Content stream finished: %s", content)
+		if _, ok := acc.JustFinishedContent(); ok {
+			//fmt.Println("\nContent stream finished")
 		}
 
 		// if using tool calls
@@ -130,28 +146,38 @@ func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk], printTh
 			fmt.Printf("Refusal stream finished: %s", refusal)
 		}
 
-		// it's best to use chunks after handling JustFinished events
+		// Print chunks as they are received
 		if len(chunk.Choices) > 0 {
 			lastChunk := chunk.Choices[0].Delta.Content
 
-			if strings.Contains(lastChunk, "</think>") {
-				// Catch end of thinking tag
+			if strings.Contains(lastChunk, "<think>") {
+				thinking = true
+				fmt.Printf("%s", color.BlueString(lastChunk))
+			} else if strings.Contains(lastChunk, "</think>") {
 				thinking = false
-				fmt.Fprint(os.Stderr, lastChunk)
+				fmt.Printf("%s", color.BlueString(lastChunk))
+
 			} else if thinking {
-				fmt.Fprint(os.Stderr, lastChunk)
+				fmt.Printf("%s", color.BlueString(lastChunk))
+
 			} else {
-				fmt.Print(lastChunk)
+				fmt.Printf("%s", lastChunk)
 			}
 		}
 	}
 
 	if stream.Err() != nil {
-		panic(stream.Err())
+		err := fmt.Errorf("\n\nError reading response stream: %v\n", stream.Err())
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	// After the stream is finished, acc can be used like a ChatCompletion
-	return acc.Choices[0].Message.ToParam()
+	appendParam := acc.Choices[0].Message.ToParam()
+	if acc.Choices[0].Message.Content == "" {
+		return nil
+	}
+	return &appendParam
 }
 
 func filterInput(r rune) (rune, bool) {

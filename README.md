@@ -31,7 +31,7 @@ $ OPENAI_BASE_URL="http://my.server:8080/v3/" go run chat.go
 Or it can be built and the resulting binary then be run:
 ```
 $ go build chat.go 
-$ OPENAI_BASE_URL="http://katryn.local:8080/v3/" MODEL_NAME="DeepSeek-R1-Distill-Qwen-7B-ov-int4" REASONING_MODEL=True ./chat 
+$ OPENAI_BASE_URL="http://my.server:8080/v3/" MODEL_NAME="DeepSeek-R1-Distill-Qwen-7B-ov-int4" REASONING_MODEL=True ./chat 
 ```
 
 If no environment variables are defined, the internal defaults will be used, which is to use the OpenAI server.
