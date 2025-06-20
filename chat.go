@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -100,6 +101,12 @@ func checkServer(client openai.Client, params openai.ChatCompletionNewParams) er
 
 func handlePrompt(client openai.Client, params openai.ChatCompletionNewParams, reasoningModel bool, prompt string) openai.ChatCompletionNewParams {
 	params.Messages = append(params.Messages, openai.UserMessage(prompt))
+
+	paramDebugString, _ := json.Marshal(params)
+
+	if os.Getenv("DEBUG") == "true" {
+		log.Printf("Sending request:\n%s", paramDebugString)
+	}
 
 	stream := client.Chat.Completions.NewStreaming(context.Background(), params)
 	appendParam := processStream(stream, reasoningModel)
