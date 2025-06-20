@@ -1,5 +1,3 @@
-/*
- */
 package main
 
 import (
@@ -141,7 +139,7 @@ func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk], printTh
 			fmt.Printf("Refusal stream finished: %s", refusal)
 		}
 
-		// Print chunks as they are received. Colors from: https://gist.github.com/vratiu/9780109
+		// Print chunks as they are received
 		if len(chunk.Choices) > 0 {
 			lastChunk := chunk.Choices[0].Delta.Content
 
