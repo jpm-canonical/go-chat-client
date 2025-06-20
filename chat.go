@@ -30,8 +30,7 @@ func main() {
 	}
 
 	if err := checkServer(client, params); err != nil {
-		err = fmt.Errorf("%v\n\nUnable to chat. Make sure the server has started successfully.\n", err)
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "%v\n\nUnable to chat. Make sure the server has started successfully.\n", err)
 		os.Exit(1)
 	}
 
@@ -167,8 +166,7 @@ func processStream(stream *ssestream.Stream[openai.ChatCompletionChunk], printTh
 	}
 
 	if stream.Err() != nil {
-		err := fmt.Errorf("\n\nError reading response stream: %v\n", stream.Err())
-		fmt.Fprint(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "\n\nError reading response stream: %v\n", stream.Err())
 		os.Exit(1)
 	}
 
