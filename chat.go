@@ -82,7 +82,7 @@ func main() {
 func checkServer(client openai.Client, params openai.ChatCompletionNewParams) error {
 	params.Messages = []openai.ChatCompletionMessageParamUnion{openai.SystemMessage("You are a helpful assistant")}
 
-	stopProgress := startProgressSpinner("Connecting to " + os.Getenv("OPENAI_BASE_URL"))
+	stopProgress := startProgressSpinner("Connecting to " + os.Getenv("OPENAI_BASE_URL") + " ")
 	defer stopProgress()
 
 	timeoutContext, timeoutCancel := context.WithTimeout(context.Background(), 2*time.Second)
