@@ -3,6 +3,7 @@ module github.com/jpm-canonical/go-chat-client
 go 1.24
 
 require (
+	github.com/briandowns/spinner v1.23.2
 	github.com/chzyer/readline v1.5.1
 	github.com/fatih/color v1.18.0
 	github.com/openai/openai-go v1.5.0
@@ -16,4 +17,5 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/term v0.1.0 // indirect
 )

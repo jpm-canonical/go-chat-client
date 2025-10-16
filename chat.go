@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/chzyer/readline"
 	"github.com/fatih/color"
 	"github.com/openai/openai-go"
@@ -38,6 +39,7 @@ func main() {
 	// Make the llm believe it told us it's an assistant. System messages are ignored?
 	params.Messages = append(params.Messages, openai.AssistantMessage("How may I assist you today?"))
 
+	fmt.Printf("Connected to %v\n", os.Getenv("OPENAI_BASE_URL"))
 	fmt.Println("Type your prompt, then ENTER to submit. CTRL-C to quit.")
 
 	rl, err := readline.NewEx(&readline.Config{
@@ -79,6 +81,9 @@ func main() {
 
 func checkServer(client openai.Client, params openai.ChatCompletionNewParams) error {
 	params.Messages = []openai.ChatCompletionMessageParamUnion{openai.SystemMessage("You are a helpful assistant")}
+
+	stopProgress := startProgressSpinner("Connecting to " + os.Getenv("OPENAI_BASE_URL") + " ")
+	defer stopProgress()
 
 	timeoutContext, timeoutCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer timeoutCancel()
@@ -187,4 +192,12 @@ func filterInput(r rune) (rune, bool) {
 		return r, false
 	}
 	return r, true
+}
+
+func startProgressSpinner(prefix string) (stop func()) {
+	s := spinner.New(spinner.CharSets[9], time.Millisecond*200)
+	s.Prefix = prefix
+	s.Start()
+
+	return s.Stop
 }
