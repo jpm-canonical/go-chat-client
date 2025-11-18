@@ -74,7 +74,9 @@ func main() {
 			break
 		}
 
-		params = handlePrompt(client, params, reasoningModel, prompt)
+		if len(prompt) > 0 {
+			params = handlePrompt(client, params, reasoningModel, prompt)
+		}
 	}
 	fmt.Println("Closing chat")
 }
