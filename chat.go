@@ -15,22 +15,44 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/fatih/color"
 	"github.com/openai/openai-go"
+	openaiOption "github.com/openai/openai-go/option"
 	"github.com/openai/openai-go/packages/ssestream"
 )
+
+var debug = os.Getenv("DEBUG") == "true"
 
 func main() {
 	modelName := os.Getenv("MODEL_NAME")
 	reasoningModel := os.Getenv("REASONING_MODEL") == "true"
+	baseURL := os.Getenv("OPENAI_BASE_URL")
+
+	if modelName == "" {
+		modelService := openai.NewModelService(openaiOption.WithBaseURL(baseURL))
+		modelPage, err := modelService.List(context.Background())
+		if err != nil {
+			log.Fatalf("Failed to list models: %v", err)
+		}
+
+		if len(modelPage.Data) == 0 {
+			log.Fatalln("Server returned no models")
+		} else if len(modelPage.Data) > 1 {
+			log.Fatalln("Server returned multiple models; please set MODEL_NAME environment variable to select one")
+		}
+		modelName = modelPage.Data[0].ID
+	}
+	if debug {
+		fmt.Printf("Using model %v\n", modelName)
+	}
 
 	// OpenAI API Client
-	client := openai.NewClient()
+	client := openai.NewClient(openaiOption.WithBaseURL(baseURL))
 	params := openai.ChatCompletionNewParams{
 		Messages: []openai.ChatCompletionMessageParamUnion{},
 		Seed:     openai.Int(0),
 		Model:    modelName,
 	}
 
-	if err := checkServer(client, params); err != nil {
+	if err := checkServer(baseURL, client, params); err != nil {
 		err = fmt.Errorf("%v\n\nUnable to chat. Make sure the server has started successfully.\n", err)
 		fmt.Fprint(os.Stderr, err)
 		os.Exit(1)
@@ -39,7 +61,7 @@ func main() {
 	// Make the llm believe it told us it's an assistant. System messages are ignored?
 	params.Messages = append(params.Messages, openai.AssistantMessage("How may I assist you today?"))
 
-	fmt.Printf("Connected to %v\n", os.Getenv("OPENAI_BASE_URL"))
+	fmt.Printf("Connected to %s\n", baseURL)
 	fmt.Println("Type your prompt, then ENTER to submit. CTRL-C to quit.")
 
 	rl, err := readline.NewEx(&readline.Config{
@@ -79,10 +101,10 @@ func main() {
 	fmt.Println("Closing chat")
 }
 
-func checkServer(client openai.Client, params openai.ChatCompletionNewParams) error {
+func checkServer(baseURL string, client openai.Client, params openai.ChatCompletionNewParams) error {
 	params.Messages = []openai.ChatCompletionMessageParamUnion{openai.SystemMessage("You are a helpful assistant")}
 
-	stopProgress := startProgressSpinner("Connecting to " + os.Getenv("OPENAI_BASE_URL") + " ")
+	stopProgress := startProgressSpinner("Connecting to " + baseURL + " ")
 	defer stopProgress()
 
 	timeoutContext, timeoutCancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -109,8 +131,8 @@ func handlePrompt(client openai.Client, params openai.ChatCompletionNewParams, r
 
 	paramDebugString, _ := json.Marshal(params)
 
-	if os.Getenv("DEBUG") == "true" {
-		log.Printf("Sending request:\n%s", paramDebugString)
+	if debug {
+		fmt.Printf("Sending request: %s\n", paramDebugString)
 	}
 
 	stream := client.Chat.Completions.NewStreaming(context.Background(), params)
