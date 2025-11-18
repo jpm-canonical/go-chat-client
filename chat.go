@@ -123,7 +123,6 @@ func handlePrompt(client openai.Client, params openai.ChatCompletionNewParams, r
 		params.Messages = append(params.Messages, *appendParam)
 	}
 	fmt.Println()
-	fmt.Println()
 
 	return params
 }
