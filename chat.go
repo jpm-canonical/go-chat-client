@@ -37,7 +37,7 @@ func main() {
 	}
 
 	// Make the llm believe it told us it's an assistant. System messages are ignored?
-	params.Messages = append(params.Messages, openai.AssistantMessage("How may I assist you today?"))
+	params.Messages = append(params.Messages, openai.SystemMessage("You are a helpful assistant."))
 
 	fmt.Printf("Connected to %v\n", os.Getenv("OPENAI_BASE_URL"))
 	fmt.Println("Type your prompt, then ENTER to submit. CTRL-C to quit.")
