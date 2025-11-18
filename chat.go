@@ -26,7 +26,6 @@ func main() {
 	client := openai.NewClient()
 	params := openai.ChatCompletionNewParams{
 		Messages: []openai.ChatCompletionMessageParamUnion{},
-		Seed:     openai.Int(0),
 		Model:    modelName,
 	}
 
@@ -113,7 +112,10 @@ func handlePrompt(client openai.Client, params openai.ChatCompletionNewParams, r
 		log.Printf("Sending request:\n%s", paramDebugString)
 	}
 
+	stopProgress := startProgressSpinner("Waiting for a response")
 	stream := client.Chat.Completions.NewStreaming(context.Background(), params)
+	stopProgress()
+
 	appendParam := processStream(stream, reasoningModel)
 
 	// Store previous prompts for context
@@ -196,7 +198,7 @@ func filterInput(r rune) (rune, bool) {
 
 func startProgressSpinner(prefix string) (stop func()) {
 	s := spinner.New(spinner.CharSets[9], time.Millisecond*200)
-	s.Prefix = prefix
+	s.Prefix = prefix + " "
 	s.Start()
 
 	return s.Stop
