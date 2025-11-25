@@ -96,7 +96,9 @@ func main() {
 			break
 		}
 
-		params = handlePrompt(client, params, reasoningModel, prompt)
+		if len(prompt) > 0 {
+			params = handlePrompt(client, params, reasoningModel, prompt)
+		}
 	}
 	fmt.Println("Closing chat")
 }
@@ -142,7 +144,6 @@ func handlePrompt(client openai.Client, params openai.ChatCompletionNewParams, r
 	if appendParam != nil {
 		params.Messages = append(params.Messages, *appendParam)
 	}
-	fmt.Println()
 	fmt.Println()
 
 	return params
