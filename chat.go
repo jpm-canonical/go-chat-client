@@ -110,6 +110,7 @@ func checkServer(baseURL string, client openai.Client, modelName string) error {
 		},
 		Model:               modelName,
 		MaxCompletionTokens: openai.Int(1),
+		MaxTokens:           openai.Int(1), // for runtimes that don't yet support MaxCompletionTokens
 	}
 
 	stopProgress := startProgressSpinner("Connecting to " + baseURL + " ")
