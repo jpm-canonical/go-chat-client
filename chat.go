@@ -45,21 +45,13 @@ func main() {
 	}
 
 	// OpenAI API Client
-	client := openai.NewClient(openaiOption.WithBaseURL(baseURL))
-	params := openai.ChatCompletionNewParams{
-		Messages: []openai.ChatCompletionMessageParamUnion{},
-		Seed:     openai.Int(0),
-		Model:    modelName,
-	}
+	client := openai.NewClient()
 
-	if err := checkServer(baseURL, client, params); err != nil {
+	if err := checkServer(baseURL, client, modelName); err != nil {
 		err = fmt.Errorf("%v\n\nUnable to chat. Make sure the server has started successfully.\n", err)
 		fmt.Fprint(os.Stderr, err)
 		os.Exit(1)
 	}
-
-	// Make the llm believe it told us it's an assistant. System messages are ignored?
-	params.Messages = append(params.Messages, openai.AssistantMessage("How may I assist you today?"))
 
 	fmt.Printf("Connected to %s\n", baseURL)
 	fmt.Println("Type your prompt, then ENTER to submit. CTRL-C to quit.")
@@ -80,6 +72,13 @@ func main() {
 	defer rl.Close()
 	//rl.CaptureExitSignal() // Should readline capture and handle the exit signal? - Can be used to interrupt the chat response stream.
 	log.SetOutput(rl.Stderr())
+
+	params := openai.ChatCompletionNewParams{
+		Messages: []openai.ChatCompletionMessageParamUnion{
+			openai.SystemMessage("You are a helpful assistant."),
+		},
+		Model: modelName,
+	}
 
 	for {
 		prompt, err := rl.Readline()
@@ -103,26 +102,24 @@ func main() {
 	fmt.Println("Closing chat")
 }
 
-func checkServer(baseURL string, client openai.Client, params openai.ChatCompletionNewParams) error {
-	params.Messages = []openai.ChatCompletionMessageParamUnion{openai.SystemMessage("You are a helpful assistant")}
+func checkServer(baseURL string, client openai.Client, modelName string) error {
 
-	stopProgress := startProgressSpinner("Connecting to " + baseURL + " ")
+	params := openai.ChatCompletionNewParams{
+		Messages: []openai.ChatCompletionMessageParamUnion{
+			openai.SystemMessage("Are you up?"),
+		},
+		Model:               modelName,
+		MaxCompletionTokens: openai.Int(1),
+		MaxTokens:           openai.Int(1), // for runtimes that don't yet support MaxCompletionTokens
+	}
+
+	stopProgress := startProgressSpinner("Connecting to " + baseURL)
 	defer stopProgress()
 
-	timeoutContext, timeoutCancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer timeoutCancel()
-
-	_, err := client.Chat.Completions.New(timeoutContext, params)
+	ctx := context.Background()
+	_, err := client.Chat.Completions.New(ctx, params)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			// Connecting to server failed: context deadline exceeded
-			// Taking longer than the timeout means the LLM is thinking
-			return nil
-		} else {
-			// Post "http://server:8080/v3/chat/completions": dial tcp 192.168.86.81:8080: connect: connection refused
-			// POST "http://server:8080/v3/chat/completions": 404 Not Found "Mediapipe graph definition with requested name is not found"
-			return err
-		}
+		return err
 	}
 
 	return nil
@@ -137,7 +134,10 @@ func handlePrompt(client openai.Client, params openai.ChatCompletionNewParams, r
 		fmt.Printf("Sending request: %s\n", paramDebugString)
 	}
 
+	stopProgress := startProgressSpinner("Waiting for a response")
 	stream := client.Chat.Completions.NewStreaming(context.Background(), params)
+	stopProgress()
+
 	appendParam := processStream(stream, reasoningModel)
 
 	// Store previous prompts for context
@@ -219,7 +219,7 @@ func filterInput(r rune) (rune, bool) {
 
 func startProgressSpinner(prefix string) (stop func()) {
 	s := spinner.New(spinner.CharSets[9], time.Millisecond*200)
-	s.Prefix = prefix
+	s.Prefix = prefix + " "
 	s.Start()
 
 	return s.Stop
