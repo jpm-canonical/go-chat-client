@@ -113,7 +113,7 @@ func checkServer(baseURL string, client openai.Client, modelName string) error {
 		MaxTokens:           openai.Int(1), // for runtimes that don't yet support MaxCompletionTokens
 	}
 
-	stopProgress := startProgressSpinner("Connecting to " + baseURL + " ")
+	stopProgress := startProgressSpinner("Connecting to " + baseURL)
 	defer stopProgress()
 
 	ctx := context.Background()
